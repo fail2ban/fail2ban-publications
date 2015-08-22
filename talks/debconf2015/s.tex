@@ -4,7 +4,7 @@
 \usepackage{url}
 \usepackage{hyperref}
 \hypersetup{pdfsubject={Slides of the lightning talk about Fail2Ban
-    given at PyCon 2014},%
+    given at DebConf 2015},%
   pdftitle={Fail2Ban -- keep your boxes skiddie-free},%
   pdfauthor={Yaroslav O. Halchenko},
   pdfkeywords={Fail2Ban, security},%
@@ -25,12 +25,14 @@
 }
 
 \title[Fail2Ban]{Fail2Ban -- keep your boxes skiddie-free}
-\author[yoh AKA Yarik]{Yaroslav O. Halchenko
+\author[yoh AKA Yarik]{Yaroslav O. Halchenko\\
   \href{mailto: yoh@debian.org}{yoh@debian.org}}
-\institute[Dartmouth, (Neuro)Debian]{\href{http://www.dartmouth.edu}{Dartmouth College},
-\href{http://www.debian.org}{Debian Project}
+\institute[Dartmouth, (Neuro)Debian]{
+\href{http://centerforopenneuroscience.org}{Center for Open Neuroscience},
+\href{http://www.dartmouth.edu}{Dartmouth College},\\
+\href{http://www.debian.org}{Debian}/\href{http://neuro.debian.net}{NeuroDebian}
 }
-\date[PyCon 2014]{PyCon 2014, Montreal, Canada}
+\date[DebConf 2015]{DebConf 2015, Heidelberg, Germany}
 
 \urlstyle{same}
 
@@ -54,7 +56,8 @@
 \end{center}
 \end{frame}
 
-\begin{frame}{Who cares?}
+\begin{frame}{Who cares?(\only<1>{use your favorite
+      multiplier}\only<2>{go wild in your guestimate})}
 \begin{center}
 \only<1>{\includegraphics[width=\textwidth]{popcon-abs.png}}
 \only<2>{\includegraphics[width=\textwidth]{popcon-rel.png}}
@@ -132,8 +135,11 @@ Jun 2 16:47:48 i sshd[1]: Failed password for joe from 1.2.3.4 port 59926 ssh2
 \begin{Verbatim}[commandchars=\\\{\},fontsize=\scriptsize]
  --------------------- fail2ban-messages Begin ------------------------
 
- Banned services with Fail2Ban:                          Bans:Unbans
-    ssh:                                                    [  3:3  ]
+ Banned services with Fail2Ban:                          Bans:Unbans:Hits
+   apache-noscript:                                        [  0:0:2  ]
+   exim:                                                   [  1:1:7  ]
+   mybabeler-admin:                                        [  0:0:1  ]
+   sshd:                                                   [ 13:13:111]
 
  ---------------------- fail2ban-messages End -------------------------
 \end{Verbatim}
@@ -149,7 +155,7 @@ Jun 2 16:47:48 i sshd[1]: Failed password for joe from 1.2.3.4 port 59926 ssh2
 
 \begin{frame}[fragile]{1. Filter}
 
-\begin{block}{/etc/fail2ban/filters.d/sshd.conf}
+\begin{block}{/etc/fail2ban/filter.d/sshd.conf}
 {\scriptsize
 \begin{verbatim}
 [INCLUDES]
@@ -163,6 +169,8 @@ failregex = ^%(__prefix_line)s(?:error: PAM: )?[aA]uthentication
             ^%(__prefix_line)s(?:error: PAM: )?User not known to
              the underlying authentication module for .* from <HOST>\s*$
             ...
+
+journalmatch = _SYSTEMD_UNIT=sshd.service + _COMM=sshd
 \end{verbatim}
 }
 \end{block}
@@ -226,23 +234,27 @@ maxretry = 3
 \begin{frame}[fragile]{Filters}
 
 \begin{Verbatim}[fontsize=\scriptsize]
-> ls /etc/fail2ban/filter.d | sed -e 's,\.conf,,g'
-3proxy              dovecot        nginx-http-auth  sendmail-reject
-apache-auth         dropbear       nsd              sieve
-apache-badbots      ejabberd-auth  openwebmail      sogo-auth
-apache-botsearch    exim-common    pam-generic      solid-pop3d
-apache-common       exim-spam      perdition        squid
-apache-modsecurity  exim           php-url-fopen    squirrelmail
-apache-nohome       freeswitch     postfix-sasl     sshd-ddos
-apache-noscript     groupoffice    postfix          sshd
-apache-overflows    gssftpd        proftpd          stunnel
-assp                guacamole      pure-ftpd        suhosin
-asterisk            horde          qmail            tine20
-common              kerio          recidive         uwimap-auth
-counter-strike      lighttpd-auth  roundcube-auth   vsftpd
-courier-auth        mysqld-auth    selinux-common   webmin-auth
-courier-smtp        nagios         selinux-ssh      wuftpd
-cyrus-imap          named-refused  sendmail-auth    xinetd-fail
+> /bin/ls /etc/fail2ban/filter.d | sed -e 's,\.conf,,g' | column
+3proxy               directadmin    named-refused   sendmail-auth
+apache-auth          dovecot        nginx-botsearch sendmail-reject
+apache-badbots       dropbear       nginx-http-auth sieve
+apache-botsearch     drupal-auth    nsd             sogo-auth
+apache-common        ejabberd-auth  openwebmail     solid-pop3d
+apache-fakegooglebot exim-common    oracleims       squid
+apache-modsecurity   exim           pam-generic     squirrelmail
+apache-nohome        exim-spam      perdition       sshd
+apache-noscript      freeswitch     php-url-fopen   sshd-ddos
+apache-overflows     froxlor-auth   portsentry      stunnel
+apache-pass          groupoffice    postfix         suhosin
+apache-shellshock    gssftpd        postfix-rbl     tine20
+assp                 guacamole      postfix-sasl    uwimap-auth
+asterisk             horde          proftpd         vsftpd
+botsearch-common     ignorecommands pure-ftpd       webmin-auth
+common               kerio          qmail           wuftpd
+counter-strike       lighttpd-auth  recidive        xinetd-fail
+courier-auth         monit          roundcube-auth
+courier-smtp         mysqld-auth    selinux-common
+cyrus-imap           nagios         selinux-ssh
 \end{Verbatim}
 \end{frame}
 
@@ -251,31 +263,35 @@ cyrus-imap          named-refused  sendmail-auth    xinetd-fail
 
 \begin{Verbatim}[fontsize=\scriptsize]
 > ls /etc/fail2ban/action.d | sed -e 's,\.conf,,g'
-apf                iptables-ipset-proto4          pf
-badips             iptables-ipset-proto6-allports route
-badips.py          iptables-ipset-proto6          sendmail-buffered
-blocklist_de       iptables-multiport-log         sendmail-common
-bsd-ipfw           iptables-multiport             sendmail-whois-ipjail
-complain           iptables-new                   sendmail-whois-matches
-dshield            iptables-xt_recent-echo        sendmail-whois-lines
-dummy              iptables                       sendmail-whois-matches
-firewallcmd-ipset  mail-buffered                  sendmail-whois
-firewallcmd-new    mail-whois-lines               sendmail
-hostsdeny          mail-whois                     shorewall
-ipfilter           mail                           smtp.py
-ipfw               mynetwatchman                  ufw
-iptables-allports  osx-afctl                      xarf-login-attack
-iptables-blocktype osx-ipfw
+apf                   iptables                       route
+badips                iptables-ipset-proto4          sendmail-buffered
+badips.py             iptables-ipset-proto6-allports sendmail-common
+blocklist_de          iptables-ipset-proto6          sendmail
+bsd-ipfw              iptables-multiport             sendmail-geoip-lines
+cloudflare            iptables-multiport-log         sendmail-whois
+complain              iptables-new                   sendmail-whois-ipjailmatches
+dshield               iptables-xt_recent-echo        sendmail-whois-ipmatches
+dummy                 mail-buffered                  sendmail-whois-lines
+firewallcmd-allports  mail                           sendmail-whois-matches
+firewallcmd-ipset     mail-whois-common              shorewall
+firewallcmd-multiport mail-whois                     shorewall-ipset-proto6
+firewallcmd-new       mail-whois-lines               smtp.py
+hostsdeny             mynetwatchman                  symbiosis-blacklist-allports
+ipfilter              nsupdate                       ufw
+ipfw                  osx-afctl                      xarf-login-attack
+iptables-allports     osx-ipfw
+iptables-common       pf
 \end{Verbatim}
 \end{frame}
 
-\begin{frame}{Selected new features of 0.9.0}
+\begin{frame}{Selected new features of 0.9.x ($>=$ stretch)}
 \begin{itemize}
 \item \emph{Cleaner} \texttt{jail.conf}
 \item \texttt{systemd} journal support
 \item Python3 support
 \item Multiline \texttt{failregex}
 \item \texttt{timeout} option for actions
+\item \texttt{pass2allow} jail for ``knocking'' style of operation
 \item ... much more (no IPv6 just yet) ...
 \end{itemize}
 \end{frame}
@@ -289,12 +305,13 @@ iptables-blocktype osx-ipfw
     \item If needed -- there is support:
       \begin{itemize}
       \item \texttt{reportbug fail2ban}
+      \item \url{http://www.fail2ban.org/wiki/index.php/HOWTO_Seek_Help}
       \item fail2ban-users mailing list @ SF
       \item IRC \#fail2ban @ FreeNode \pause
       \end{itemize}
     \item \alert{Don't just blog -- \textbf{Contribute!}}
     \item Wiki: \href{http://www.fail2ban.org}{www.fail2ban.org}
-    \item Code: clone/send pull requests
+    \item Code: clone/send pull requests/review outstanding PRs
       \href{http://github.com/fail2ban/fail2ban/pulls}{github.com/fail2ban/fail2ban}
       \begin{itemize}
       \item Fixes
@@ -322,21 +339,21 @@ iptables-blocktype osx-ipfw
 
 \begin{Verbatim}[commandchars=\\\{\},fontsize=\small]
 > git shortlog -sn origin/master | nl
-     1	   852	Daniel Black        # 2012 --
-     2	   574	\textbf{Cyril Jaquier}       # 2004 -- 2009
-     3	   554	\alert{Yaroslav Halchenko}  # 2005 --
-     4	   398	Steven Hiscocks     # 2013 --
-     5	    20	Lee Clemens         # 2012 --
-     6	    14	Ivo Truxa           # 2013 --
-     7	    12	Arturo 'Buanzo' Busleiman # 2009 --
-     8	    12	Orion Poplawski     # 2013 --
+  1   854  Daniel Black       # 2012 -- 2014
+  2   797  Yaroslav Halchenko # 2005 --
+  3   574  \textbf{Cyril Jaquier}      # 2004 -- 2009
+  4   440  Steven Hiscocks    # 2013 --
+  5   118  Lee Clemens        # 2012 --
+  6    59  sebres             # 2013 --
+  7    23  Viktor Szépe       # 2014 --
+  8    22  Orion Poplawski    # 2013 --
 ...
-    61	     1	Lukasz
+103     1  Lukasz
 
      \alert{STILL VERY EASY TO MAKE FIRST TOP 10!!!}
 
 > wc -l THANKS
-108 THANKS             # subtract 8 for the header ;)
+127 THANKS             # subtract 8 for the header ;)
 \end{Verbatim}
 \end{frame}
 
